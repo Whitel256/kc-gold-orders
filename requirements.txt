@@ -1,0 +1,7 @@
+flask
+flask-sqlalchemy
+pymysql
+werkzeug
+gunicorn
+cryptography
+boto3

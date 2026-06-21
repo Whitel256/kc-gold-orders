@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — KCG Orders{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-gray-800">Dashboard</h1>
+    <p class="text-sm text-gray-400 mt-0.5">Welcome back, {{ session.user_name }}</p>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+      <div class="text-xs text-gray-400 mb-1">Total</div>
+      <div class="text-3xl font-bold text-gray-700">{{ stats.total }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+      <div class="text-xs text-gray-400 mb-1">Pending</div>
+      <div class="text-3xl font-bold text-amber-500">{{ stats.pending }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+      <div class="text-xs text-gray-400 mb-1">At Vendor</div>
+      <div class="text-3xl font-bold text-blue-500">{{ stats.given_to_vendor }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+      <div class="text-xs text-gray-400 mb-1">At HO</div>
+      <div class="text-3xl font-bold text-teal-500">{{ stats.received_at_ho }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+      <div class="text-xs text-gray-400 mb-1">Dispatched</div>
+      <div class="text-3xl font-bold text-purple-500">{{ stats.dispatched_to_branch }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
+      <div class="text-xs text-gray-400 mb-1">Delivered</div>
+      <div class="text-3xl font-bold text-green-500">{{ stats.delivered }}</div>
+    </div>
+  </div>
+
+  <!-- Branch-wise Pending Orders -->
+  <div>
+    <h2 class="text-base font-semibold text-gray-700 mb-3">
+      {% if session.user_role == 'branch' %}
+        Pending Orders
+      {% else %}
+        Branch-wise Pending Orders
+      {% endif %}
+    </h2>
+
+    {% if branch_pending %}
+      {% for branch_name, orders in branch_pending.items() %}
+      <div class="bg-white border border-gray-200 rounded-xl mb-4 shadow-sm overflow-hidden">
+
+        <!-- Branch Header -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100"
+             style="background: linear-gradient(90deg, #fdfaf3, #fff);">
+          <div class="flex items-center gap-2">
+            <span class="text-base">📍</span>
+            <span class="font-semibold text-gray-700 text-sm">{{ branch_name }}</span>
+            <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+              {{ orders|length }} order{{ 's' if orders|length != 1 }}
+            </span>
+          </div>
+          {% set overdue_count = orders | selectattr('expected_delivery_date') | selectattr('expected_delivery_date', 'lt', today) | list | length %}
+          {% if overdue_count > 0 %}
+          <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+            {{ overdue_count }} overdue
+          </span>
+          {% endif %}
+        </div>
+
+        <!-- Orders Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-gray-400 border-b border-gray-100">
+                <th class="text-left px-4 py-2 font-medium">Order No</th>
+                <th class="text-left px-4 py-2 font-medium">Customer</th>
+                <th class="text-left px-4 py-2 font-medium">Item</th>
+                <th class="text-left px-4 py-2 font-medium">Vendor</th>
+                <th class="text-left px-4 py-2 font-medium">Expected</th>
+                <th class="text-left px-4 py-2 font-medium">Status</th>
+                <th class="px-4 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in orders %}
+              <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
+                <td class="px-4 py-2.5">
+                  <div class="font-medium text-gray-700">{{ order.order_no or '—' }}</div>
+                  <div class="text-xs text-gray-400">{{ order.order_number }}</div>
+                </td>
+                <td class="px-4 py-2.5 font-medium text-gray-700">{{ order.customer_name }}</td>
+                <td class="px-4 py-2.5 text-gray-500">
+                  {{ order.product.name }}<br>
+                  <span class="text-xs">{{ order.sub_product }} · {{ order.weight }}g</span>
+                </td>
+                <td class="px-4 py-2.5 text-gray-500">{{ order.vendor.name }}</td>
+                <td class="px-4 py-2.5">
+                  {% if order.expected_delivery_date %}
+                    <span class="{% if order.expected_delivery_date < today %}text-red-500 font-medium{% else %}text-gray-500{% endif %}">
+                      {{ order.expected_delivery_date }}
+                    </span>
+                  {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-2.5">
+                  <span class="status-{{ order.order_status }} text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap">
+                    {{ STATUS_LABELS[order.order_status] }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <a href="/orders/{{ order.id }}"
+                     class="text-xs text-amber-700 hover:text-amber-900 font-medium hover:underline">
+                    View →
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+      {% endfor %}
+
+    {% else %}
+      <div class="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
+        <div class="text-4xl mb-3">✅</div>
+        <div class="text-base font-medium text-gray-600">All caught up!</div>
+        <div class="text-sm text-gray-400 mt-1">No pending orders at the moment</div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

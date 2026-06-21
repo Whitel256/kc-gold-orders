@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Edit Order — {{ order.order_number }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="flex items-center gap-4 mb-6">
+    <a href="/orders/{{ order.id }}" class="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">← Back</a>
+    <div>
+      <div class="text-xs text-gray-400">{{ order.order_number }}</div>
+      <h1 class="text-xl font-bold text-gray-800">Edit Order</h1>
+    </div>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-2xl p-5">
+    <form method="POST" enctype="multipart/form-data" class="flex flex-col gap-5">
+
+      <div>
+        <div class="text-xs font-semibold text-yellow-700 uppercase tracking-wider mb-3">Customer</div>
+        <div>
+          <label class="text-sm text-gray-600 mb-1 block">Customer Name <span class="text-red-500">*</span></label>
+          <input name="customer_name" required value="{{ order.customer_name }}"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        </div>
+      </div>
+
+      <div>
+        <div class="text-xs font-semibold text-yellow-700 uppercase tracking-wider mb-3">Order Details</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Vendor <span class="text-red-500">*</span></label>
+            <select name="vendor_id" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+              {% for v in vendors %}
+              <option value="{{ v.id }}" {% if v.id == order.vendor_id %}selected{% endif %}>{{ v.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Weight (g) <span class="text-red-500">*</span></label>
+            <input name="weight" type="number" step="0.01" required value="{{ order.weight }}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          </div>
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Size</label>
+            <input name="size" value="{{ order.size or '' }}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          </div>
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Quantity</label>
+            <input name="quantity" type="number" min="1" value="{{ order.quantity }}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          </div>
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Order Date <span class="text-red-500">*</span></label>
+            <input name="order_date" type="date" required value="{{ order.order_date }}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          </div>
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Expected Delivery <span class="text-red-500">*</span></label>
+            <input name="expected_delivery_date" type="date" required value="{{ order.expected_delivery_date }}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="text-xs font-semibold text-yellow-700 uppercase tracking-wider mb-3">Design</div>
+        <div class="flex flex-col gap-3">
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">Design Notes</label>
+            <textarea name="design_notes" rows="3"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 resize-none">{{ order.design_notes or '' }}</textarea>
+          </div>
+          <div>
+            <label class="text-sm text-gray-600 mb-1 block">
+              Reference Images
+              <span class="text-xs text-gray-400 font-normal ml-1">Up to 3 total</span>
+            </label>
+            <!-- Existing images -->
+            {% set imgs = order | get_images %}
+            {% if imgs %}
+            <div class="flex gap-3 mb-3 flex-wrap">
+              {% for img in imgs %}
+              <div class="relative group">
+                <img src="{{ img|img_url }}" class="w-20 h-20 object-cover rounded-xl border-2 border-yellow-200 shadow-sm">
+                <label class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                  <input type="checkbox" name="remove_image" value="{{ loop.index0 }}" class="hidden" onchange="this.closest('.relative').classList.toggle('opacity-40', this.checked)">
+                  <span class="text-white text-xs font-medium">✕ Remove</span>
+                </label>
+              </div>
+              {% endfor %}
+              <span class="text-xs text-gray-400 self-center">Hover to remove</span>
+            </div>
+            {% endif %}
+            <!-- Add more images -->
+            {% if imgs|length < 3 %}
+            <div class="border-2 border-dashed border-gray-200 rounded-xl p-3 hover:border-yellow-400 transition">
+              <input type="file" name="reference_images" accept="image/*" multiple
+                class="text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100 w-full"
+                onchange="previewNewImages(this, {{ imgs|length }})">
+              <p class="text-xs text-gray-400 mt-1">Add up to {{ 3 - imgs|length }} more image{{ 's' if (3 - imgs|length) != 1 }}</p>
+            </div>
+            <div id="newImgPreview" class="flex gap-3 mt-2 flex-wrap"></div>
+            {% else %}
+            <p class="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">Maximum 3 images reached. Remove one to add another.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit"
+          class="flex-1 bg-yellow-700 text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-yellow-800 transition">
+          Save Changes
+        </button>
+        <a href="/orders/{{ order.id }}"
+          class="flex-1 text-center border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition">
+          Cancel
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+<script>
+function previewNewImages(input, existing) {
+  const preview = document.getElementById('newImgPreview');
+  preview.innerHTML = '';
+  const max = 3 - existing;
+  const files = Array.from(input.files).slice(0, max);
+  if (input.files.length > max) alert(`You can only add ${max} more image(s).`);
+  files.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.className = 'relative';
+      div.innerHTML = `<img src="${e.target.result}" class="w-20 h-20 object-cover rounded-xl border-2 border-green-200 shadow-sm">
+        <span class="absolute -top-1 -right-1 w-5 h-5 bg-green-600 text-white text-xs rounded-full flex items-center justify-center font-bold">+</span>`;
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+</script>
+{% endblock %}

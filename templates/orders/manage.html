@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Manage Orders — KCG Orders{% endblock %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto">
+
+  <!-- Page Header -->
+  <div class="mb-5">
+    <h1 class="text-xl font-bold text-gray-800">Manage Orders</h1>
+    <p class="text-sm text-gray-400 mt-0.5">Filter, view and update order statuses</p>
+  </div>
+
+  <!-- Filters Bar -->
+  <form method="get" class="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-5 flex flex-wrap items-end gap-3">
+    {% if session.user_role in ('admin', 'headoffice') %}
+    <div class="flex flex-col gap-1">
+      <label class="text-xs font-medium text-gray-500">Branch</label>
+      <select name="branch_id" onchange="this.form.submit()"
+        class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:border-yellow-400 min-w-36">
+        <option value="">All Branches</option>
+        {% for b in branches %}
+        <option value="{{ b.id }}" {% if branch_filter == b.id|string %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div class="flex flex-col gap-1">
+      <label class="text-xs font-medium text-gray-500">Dealer / Vendor</label>
+      <select name="vendor_id" onchange="this.form.submit()"
+        class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:border-yellow-400 min-w-40">
+        <option value="">All Dealers</option>
+        {% for v in vendors %}
+        <option value="{{ v.id }}" {% if vendor_filter == v.id|string %}selected{% endif %}>{{ v.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-xs font-medium text-gray-500">Status</label>
+      <select name="status" onchange="this.form.submit()"
+        class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:border-yellow-400 min-w-40">
+        <option value="">All Statuses</option>
+        {% for key, label in STATUS_LABELS.items() %}
+        <option value="{{ key }}" {% if status_filter == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-1 flex-1">
+      <label class="text-xs font-medium text-gray-500">Search</label>
+      <input name="search" value="{{ search }}" placeholder="Customer name or order no…"
+        class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-yellow-400 min-w-48">
+    </div>
+
+    <button type="submit"
+      class="bg-yellow-700 text-white text-sm px-4 py-2 rounded-lg hover:bg-yellow-800 transition h-[38px]">
+      Search
+    </button>
+    {% if search or status_filter or branch_filter or vendor_filter %}
+    <a href="/manage-orders" class="text-sm text-gray-400 hover:text-gray-600 py-2">Clear</a>
+    {% endif %}
+  </form>
+
+  <!-- Results count -->
+  <div class="text-sm text-gray-400 mb-4">{{ orders|length }} order{{ 's' if orders|length != 1 }}</div>
+
+  <!-- Orders List -->
+  {% if orders %}
+  <div class="flex flex-col gap-4">
+    {% for order in orders %}
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-yellow-300 hover:shadow-sm transition">
+      <div class="flex">
+
+        <!-- LEFT: Reference Image -->
+        <div class="w-44 flex-shrink-0 bg-gray-50 border-r border-gray-100 flex items-center justify-center p-2">
+          {% set imgs = order | get_images %}
+          {% if imgs %}
+          <div class="flex flex-col gap-1 w-full">
+            {% for img in imgs %}
+            <img src="{{ img|img_url }}"
+                 alt="Image {{ loop.index }}"
+                 class="w-full object-cover rounded-lg cursor-pointer {% if imgs|length == 1 %}h-36{% elif imgs|length == 2 %}h-[68px]{% else %}h-[44px]{% endif %}"
+                 onclick="openImg('{{ img|img_url }}')">
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="flex flex-col items-center justify-center h-36 w-full text-gray-300">
+            <svg class="w-10 h-10 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span class="text-xs">No image</span>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- RIGHT: Order Details + Status -->
+        <div class="flex-1 px-4 py-3 flex flex-col justify-between min-w-0">
+
+          <!-- Top row: order info + status badge + update button -->
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                {% if order.order_no %}
+                <span class="text-sm font-bold text-yellow-700">{{ order.order_no }}</span>
+                <span class="text-gray-300 text-xs">|</span>
+                {% endif %}
+                <span class="text-xs text-gray-400">{{ order.order_number }}</span>
+              </div>
+              <div class="text-base font-semibold text-gray-800 truncate">{{ order.customer_name }}</div>
+            </div>
+
+            <!-- Status + Update (top-right) -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <!-- Overdue badge -->
+              {% if order.expected_delivery_date and order.expected_delivery_date < today and order.order_status not in ('delivered', 'cancelled') %}
+              <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">Overdue</span>
+              {% endif %}
+
+              <!-- Current status pill -->
+              <span class="status-{{ order.order_status }} text-xs px-3 py-1 rounded-full font-medium whitespace-nowrap">
+                {{ STATUS_LABELS[order.order_status] }}
+              </span>
+
+              <!-- Status update button (if allowed) -->
+              {% set next_st = STATUS_FLOW.get(order.order_status) %}
+              {% if next_st %}
+                {% set can_upd = false %}
+                {% if session.user_role == 'admin' %}
+                  {% set can_upd = true %}
+                {% elif session.user_role == 'branch' and next_st in ('given_to_vendor', 'delivered') %}
+                  {% set can_upd = true %}
+                {% elif session.user_role == 'headoffice' and next_st in ('received_at_ho', 'dispatched_to_branch') %}
+                  {% set can_upd = true %}
+                {% endif %}
+                {% if can_upd %}
+                <button onclick="openStatusModal({{ order.id }}, '{{ STATUS_LABELS[next_st] }}')"
+                  class="text-xs bg-yellow-700 text-white px-3 py-1.5 rounded-lg hover:bg-yellow-800 transition whitespace-nowrap font-medium">
+                  → {{ STATUS_LABELS[next_st] }}
+                </button>
+                {% endif %}
+              {% endif %}
+
+              <!-- View detail link -->
+              <a href="/orders/{{ order.id }}"
+                class="text-xs text-gray-400 hover:text-yellow-700 transition px-2 py-1.5 rounded-lg hover:bg-yellow-50 whitespace-nowrap">
+                View ↗
+              </a>
+            </div>
+          </div>
+
+          <!-- Middle: order meta -->
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-2">
+            <span class="flex items-center gap-1">
+              <span class="text-base">🪙</span>
+              {{ order.product.name }} · {{ order.sub_product }}
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="text-base">⚖️</span>
+              {{ order.weight }}g · {{ order.purity }}
+              {% if order.quantity > 1 %} · Qty: {{ order.quantity }}{% endif %}
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="text-base">🏪</span>
+              {{ order.vendor.name }}
+            </span>
+            {% if session.user_role != 'branch' %}
+            <span class="flex items-center gap-1">
+              <span class="text-base">📍</span>
+              {{ order.branch.name }}
+            </span>
+            {% endif %}
+            {% if order.size %}
+            <span class="flex items-center gap-1">
+              <span class="text-base">📐</span>
+              Size: {{ order.size }}
+            </span>
+            {% endif %}
+          </div>
+
+          <!-- Bottom: dates + notes -->
+          <div class="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400 mt-2">
+            <span>📅 Ordered: {{ order.order_date }}</span>
+            {% if order.expected_delivery_date %}
+            <span class="{% if order.expected_delivery_date < today and order.order_status not in ('delivered','cancelled') %}text-red-400{% endif %}">
+              🗓️ Expected: {{ order.expected_delivery_date }}
+            </span>
+            {% endif %}
+            {% if order.design_notes %}
+            <span class="truncate max-w-xs">📝 {{ order.design_notes }}</span>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="text-center py-20 text-gray-400">
+    <div class="text-5xl mb-3">📋</div>
+    <div class="text-base">No orders found</div>
+    <div class="text-sm mt-1">Try adjusting your filters</div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Status Update Modal -->
+<div id="statusModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+    <h3 class="text-base font-semibold text-gray-800 mb-1">Update Order Status</h3>
+    <p class="text-sm text-gray-500 mb-4">Moving to: <span id="modalNextStatus" class="font-medium text-yellow-700"></span></p>
+    <form id="statusForm" method="post">
+      <textarea name="remarks" rows="3" placeholder="Remarks (optional)…"
+        class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-yellow-400 resize-none mb-4"></textarea>
+      <div class="flex gap-2 justify-end">
+        <button type="button" onclick="closeStatusModal()"
+          class="text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+          Cancel
+        </button>
+        <button type="submit"
+          class="text-sm px-4 py-2 rounded-lg bg-yellow-700 text-white hover:bg-yellow-800 transition font-medium">
+          Confirm Update
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Image Lightbox -->
+<div id="imgModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden" onclick="closeImg()">
+  <img id="imgModalSrc" src="" class="max-w-3xl max-h-[85vh] rounded-xl shadow-2xl object-contain">
+</div>
+
+<script>
+function openStatusModal(orderId, nextLabel) {
+  document.getElementById('modalNextStatus').textContent = nextLabel;
+  document.getElementById('statusForm').action = '/orders/' + orderId + '/update-status';
+  document.getElementById('statusModal').classList.remove('hidden');
+}
+function closeStatusModal() {
+  document.getElementById('statusModal').classList.add('hidden');
+}
+function openImg(src) {
+  document.getElementById('imgModalSrc').src = src;
+  document.getElementById('imgModal').classList.remove('hidden');
+}
+function closeImg() {
+  document.getElementById('imgModal').classList.add('hidden');
+}
+// Close modal on escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeStatusModal(); closeImg(); }
+});
+</script>
+
+{% endblock %}

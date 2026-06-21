@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Vendor Report — KCG Orders{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold text-gray-800">Reports</h1>
+  </div>
+  <div class="flex gap-1 border-b border-gray-200 mb-6">
+    <a href="/reports/branch"  class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600">Branch Wise</a>
+    <a href="/reports/vendor"  class="px-4 py-2 text-sm font-medium text-yellow-700 border-b-2 border-yellow-600">Vendor Wise</a>
+    <a href="/reports/monthly" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600">Monthly</a>
+    <a href="/reports/overdue" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600">Overdue</a>
+  </div>
+
+  <div class="flex flex-col gap-4">
+    {% for d in data %}
+    <div class="bg-white border border-gray-200 rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-base font-bold text-gray-800">{{ d.vendor.name }}</div>
+          {% if d.vendor.phone %}<div class="text-xs text-gray-400">{{ d.vendor.phone }}</div>{% endif %}
+        </div>
+        {% if d.overdue > 0 %}
+        <span class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full">{{ d.overdue }} overdue</span>
+        {% endif %}
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div class="bg-gray-50 rounded-xl p-3"><div class="text-xs text-gray-400 mb-1">Total Orders</div><div class="text-xl font-bold text-gray-700">{{ d.total }}</div></div>
+        <div class="bg-blue-50 rounded-xl p-3"><div class="text-xs text-gray-400 mb-1">Active Now</div><div class="text-xl font-bold text-blue-600">{{ d.active }}</div></div>
+        <div class="bg-green-50 rounded-xl p-3"><div class="text-xs text-gray-400 mb-1">Delivered</div><div class="text-xl font-bold text-green-600">{{ d.delivered }}</div></div>
+        <div class="bg-yellow-50 rounded-xl p-3"><div class="text-xs text-gray-400 mb-1">Gold Pending (g)</div><div class="text-xl font-bold text-yellow-700">{{ d.pending_weight }}g</div></div>
+      </div>
+    </div>
+    {% else %}
+    <div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-gray-400">
+      <div class="text-4xl mb-3">🏪</div><div>No vendor data available</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

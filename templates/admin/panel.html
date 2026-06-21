@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+
+  <div class="flex items-center gap-4 mb-6">
+    <a href="/dashboard" class="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">← Back</a>
+    <h1 class="text-xl font-bold text-gray-800">Admin Panel</h1>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 border-b border-gray-200 mb-6">
+    <button onclick="showTab('vendors')" id="tab-vendors"
+      class="tab-btn px-4 py-2 text-sm font-medium text-yellow-700 border-b-2 border-yellow-600">Vendors</button>
+    <button onclick="showTab('products')" id="tab-products"
+      class="tab-btn px-4 py-2 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600">Products</button>
+    <button onclick="showTab('users')" id="tab-users"
+      class="tab-btn px-4 py-2 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600">Users</button>
+  </div>
+
+  <!-- Vendors -->
+  <div id="panel-vendors">
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Add Vendor</div>
+      <form method="POST" action="/admin/vendors/add" class="flex flex-wrap gap-2">
+        <input name="name" required placeholder="Vendor name *"
+          class="flex-1 min-w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <input name="phone" placeholder="Phone"
+          class="flex-1 min-w-28 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <input name="address" placeholder="Address"
+          class="flex-1 min-w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <button type="submit" class="bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-800">Add</button>
+      </form>
+    </div>
+    <div class="flex flex-col gap-2">
+      {% for v in vendors %}
+      <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium text-gray-800">{{ v.name }}</div>
+          {% if v.phone %}<div class="text-xs text-gray-400">{{ v.phone }}</div>{% endif %}
+        </div>
+        <form method="POST" action="/admin/vendors/delete/{{ v.id }}">
+          <button type="submit" class="text-xs text-red-500 border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50">Remove</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Products -->
+  <div id="panel-products" class="hidden">
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Add Product</div>
+      <form method="POST" action="/admin/products/add" class="flex gap-2">
+        <input name="name" required placeholder="Product name *"
+          class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <button type="submit" class="bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-800">Add</button>
+      </form>
+    </div>
+    <div class="flex flex-col gap-2">
+      {% for p in products %}
+      <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+        <div class="text-sm font-medium text-gray-800">{{ p.name }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Users -->
+  <div id="panel-users" class="hidden">
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Add User</div>
+      <form method="POST" action="/admin/users/add" class="grid grid-cols-2 gap-3">
+        <input name="username" required placeholder="Username *"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <input name="full_name" required placeholder="Full Name *"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <input name="password" type="password" required placeholder="Password * (min 6 chars)"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+        <select name="role" id="role-select" onchange="toggleBranch(this.value)"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          <option value="branch">Branch</option>
+          <option value="headoffice">Head Office</option>
+          <option value="admin">Admin</option>
+        </select>
+        <select name="branch_id" id="branch-select"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+          <option value="">Select branch</option>
+          {% for b in branches %}{% if b.code != 'HO' %}
+          <option value="{{ b.id }}">{{ b.name }}</option>
+          {% endif %}{% endfor %}
+        </select>
+        <button type="submit" class="bg-yellow-700 text-white py-2 rounded-lg text-sm hover:bg-yellow-800">Add User</button>
+      </form>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      {% for u in users %}
+      <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-gray-800">
+              {{ u.full_name }}
+              <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-1">{{ u.role }}</span>
+            </div>
+            <div class="text-xs text-gray-400">@{{ u.username }}{% if u.branch %} · {{ u.branch.name }}{% endif %}</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="toggleReset({{ u.id }})"
+              class="text-xs text-blue-500 border border-blue-200 px-3 py-1 rounded-lg hover:bg-blue-50">Reset PW</button>
+            <form method="POST" action="/admin/users/deactivate/{{ u.id }}"
+              onsubmit="return confirm('Deactivate {{ u.username }}?')">
+              <button type="submit" class="text-xs text-red-500 border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50">Remove</button>
+            </form>
+          </div>
+        </div>
+        <div id="reset-{{ u.id }}" class="hidden mt-3">
+          <form method="POST" action="/admin/users/reset-password/{{ u.id }}" class="flex gap-2">
+            <input name="new_password" type="password" placeholder="New password (min 6 chars)" required
+              class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400">
+            <button type="submit" class="bg-yellow-700 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-yellow-800">Save</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(name) {
+  ['vendors','products','users'].forEach(t => {
+    document.getElementById('panel-' + t).classList.toggle('hidden', t !== name);
+    const btn = document.getElementById('tab-' + t);
+    if (t === name) {
+      btn.classList.add('text-yellow-700','border-yellow-600');
+      btn.classList.remove('text-gray-400','border-transparent');
+    } else {
+      btn.classList.remove('text-yellow-700','border-yellow-600');
+      btn.classList.add('text-gray-400','border-transparent');
+    }
+  });
+}
+function toggleBranch(role) {
+  document.getElementById('branch-select').style.display = role === 'branch' ? '' : 'none';
+}
+function toggleReset(uid) {
+  const el = document.getElementById('reset-' + uid);
+  el.classList.toggle('hidden');
+}
+const hash = window.location.hash.replace('#','');
+if (['vendors','products','users'].includes(hash)) showTab(hash);
+</script>
+{% endblock %}

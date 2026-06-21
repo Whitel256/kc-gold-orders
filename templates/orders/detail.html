@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}{{ order.order_number }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="flex items-center justify-between mb-6">
+    <a href="/dashboard" class="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">← Back</a>
+    <div class="flex items-center gap-2 ml-auto mr-2">
+      {% if order.order_status == 'pending' and session.user_role in ('branch', 'admin') %}
+      <a href="/orders/{{ order.id }}/edit"
+        class="text-sm text-yellow-700 border border-yellow-300 px-3 py-1.5 rounded-lg hover:bg-yellow-50">✏ Edit</a>
+      {% endif %}
+      <a href="/orders/{{ order.id }}/print" target="_blank"
+        class="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">🖨 Print</a>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if order.expected_delivery_date and order.expected_delivery_date < today and order.order_status != 'delivered' %}
+      <span class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full font-medium">⚠ Overdue</span>
+      {% endif %}
+      <span class="status-{{ order.order_status }} text-sm px-4 py-1.5 rounded-full font-medium">
+        {{ STATUS_LABELS[order.order_status] }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+    {% set imgs = order | get_images %}
+    <div class="{% if imgs %}grid grid-cols-3 gap-4{% endif %}">
+
+      <!-- Details -->
+      <div class="{% if imgs %}col-span-2{% endif %}">
+        <div class="flex items-center gap-3 mb-1">
+          {% if order.order_no %}
+          <span class="text-base font-bold text-yellow-700">Order No: {{ order.order_no }}</span>
+          <span class="text-gray-300">|</span>
+          {% endif %}
+          <span class="text-xs text-gray-400">{{ order.order_number }}</span>
+        </div>
+        <div class="text-xl font-bold text-gray-800 mt-1 mb-4">{{ order.customer_name }}</div>
+
+        <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Branch</div><div class="text-sm font-medium text-gray-800">{{ order.branch.name }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Product</div><div class="text-sm font-medium text-gray-800">{{ order.product.name }} — {{ order.sub_product }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Vendor</div><div class="text-sm font-medium text-gray-800">{{ order.vendor.name }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Purity</div><div class="text-sm font-medium text-gray-800">{{ order.purity }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Weight</div><div class="text-sm font-medium text-gray-800">{{ order.weight }}g</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Size</div><div class="text-sm font-medium text-gray-800">{{ order.size or '—' }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Quantity</div><div class="text-sm font-medium text-gray-800">{{ order.quantity }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Order Date</div><div class="text-sm font-medium text-gray-800">{{ order.order_date }}</div></div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Expected Delivery</div>
+            <div class="text-sm font-medium {% if order.expected_delivery_date and order.expected_delivery_date < today and order.order_status != 'delivered' %}text-red-600{% else %}text-gray-800{% endif %}">
+              {{ order.expected_delivery_date or '—' }}
+            </div>
+          </div>
+          <div><div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Created By</div><div class="text-sm font-medium text-gray-800">{{ order.created_by_user.full_name }}</div></div>
+        </div>
+
+        {% if order.design_notes %}
+        <div class="mt-4 bg-gray-50 rounded-xl p-3">
+          <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Design Notes</div>
+          <div class="text-sm text-gray-700 leading-relaxed">{{ order.design_notes }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Reference Images -->
+      {% set imgs = order | get_images %}
+      {% if imgs %}
+      <div class="col-span-1 flex flex-col gap-2">
+        <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Reference Images</div>
+        {% for img in imgs %}
+        <img src="{{ img|img_url }}" alt="Reference {{ loop.index }}"
+          onclick="openLightbox(this.src)"
+          class="w-full rounded-xl object-cover cursor-zoom-in border border-gray-100 hover:border-yellow-300 transition"
+          style="max-height:140px; object-fit:cover;">
+        {% endfor %}
+        <div class="text-xs text-gray-400 text-center">Click to enlarge</div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- Update Status -->
+  {% if can_update %}
+  <div class="bg-white border border-yellow-200 rounded-2xl p-5 mb-4">
+    <div class="text-sm font-semibold text-gray-800 mb-3">Update Status → {{ STATUS_LABELS[next_status] }}</div>
+    <form method="POST" action="/orders/{{ order.id }}/update-status" class="flex flex-col gap-3">
+      <textarea name="remarks" rows="2" placeholder="Add remarks (optional)…"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 resize-none"></textarea>
+      <button type="submit"
+        class="bg-yellow-700 text-white text-sm px-4 py-2.5 rounded-lg hover:bg-yellow-800 transition font-medium">
+        ✓ Mark as {{ STATUS_LABELS[next_status] }}
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Reverse Status -->
+  {% if can_reverse %}
+  <div class="bg-white border border-red-200 rounded-2xl p-5 mb-4">
+    <button onclick="toggleReverse()" class="w-full flex items-center justify-between text-left">
+      <div class="text-sm font-semibold text-red-700">↩ Reverse Status</div>
+      <svg id="reverse-chevron" class="w-4 h-4 text-red-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div id="reverse-panel" class="hidden mt-4">
+      <form method="POST" action="/orders/{{ order.id }}/reverse-status" class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Reverse to</label>
+          <select name="target_status" required
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400">
+            <option value="">Select previous status…</option>
+            {% for s in previous_statuses|reverse %}
+            <option value="{{ s }}">{{ STATUS_LABELS[s] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Reason <span class="text-red-500">*</span></label>
+          <textarea name="reason" rows="2" required placeholder="Why is this being reversed?…"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none"></textarea>
+        </div>
+        <button type="submit"
+          onclick="return confirm('Are you sure you want to reverse this status?')"
+          class="bg-red-600 text-white text-sm px-4 py-2.5 rounded-lg hover:bg-red-700 transition font-medium">
+          ↩ Reverse Status
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Timeline -->
+  <div class="bg-white border border-gray-200 rounded-2xl p-5">
+    <div class="text-sm font-semibold text-gray-800 mb-4">Order Timeline</div>
+    {% if logs %}
+    <div class="flex flex-col gap-4">
+      {% for log in logs %}
+      <div class="flex gap-3">
+        <div class="mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0
+          {% if '[REVERSED]' in (log.remarks or '') %}bg-red-400{% else %}bg-yellow-500{% endif %}">
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <div class="text-sm font-medium text-gray-800">{{ STATUS_LABELS.get(log.new_status, log.new_status) }}</div>
+            {% if '[REVERSED]' in (log.remarks or '') %}
+            <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Reversed</span>
+            {% endif %}
+          </div>
+          <div class="text-xs text-gray-400 mt-0.5">
+            {{ log.changed_by_user.full_name }} · {{ log.changed_at.strftime('%d %b %Y, %I:%M %p') }}
+          </div>
+          {% if log.remarks %}
+          <div class="text-xs mt-1 italic px-2 py-1 rounded
+            {% if '[REVERSED]' in log.remarks %}bg-red-50 text-red-600{% else %}bg-gray-50 text-gray-500{% endif %}">
+            {{ log.remarks.replace('[REVERSED] ', '') if '[REVERSED]' in log.remarks else log.remarks }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-sm text-gray-400">No history yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+  <!-- Cancel Order -->
+  {% if order.order_status != 'delivered' and order.order_status != 'cancelled' and session.user_role in ('admin', 'headoffice') %}
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+    <button onclick="toggleCancel()" class="w-full flex items-center justify-between text-left">
+      <div class="text-sm font-semibold text-gray-500">🚫 Cancel Order</div>
+      <svg id="cancel-chevron" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div id="cancel-panel" class="hidden mt-4">
+      <form method="POST" action="/orders/{{ order.id }}/cancel" class="flex flex-col gap-3">
+        <textarea name="reason" rows="2" required placeholder="Reason for cancellation *"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none"></textarea>
+        <button type="submit"
+          onclick="return confirm('Are you sure you want to cancel this order?')"
+          class="bg-gray-700 text-white text-sm px-4 py-2.5 rounded-lg hover:bg-gray-800 transition font-medium">
+          Confirm Cancellation
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()"
+  class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden items-center justify-center cursor-zoom-out">
+  <img id="lightbox-img" src="" alt="Full image"
+    class="max-w-3xl max-h-screen object-contain rounded-xl shadow-2xl p-4">
+</div>
+
+<script>
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.remove('hidden');
+  document.getElementById('lightbox').classList.add('flex');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.add('hidden');
+  document.getElementById('lightbox').classList.remove('flex');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+function toggleReverse() {
+  document.getElementById('reverse-panel').classList.toggle('hidden');
+  document.getElementById('reverse-chevron').classList.toggle('rotate-180');
+}
+function toggleCancel() {
+  document.getElementById('cancel-panel').classList.toggle('hidden');
+  document.getElementById('cancel-chevron').classList.toggle('rotate-180');
+}
+</script>
+{% endblock %}

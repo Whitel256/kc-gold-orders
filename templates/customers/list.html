@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Customers — KCG Orders{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold text-gray-800">Customers</h1>
+    <span class="text-sm text-gray-400">{{ enriched|length }} customer{{ 's' if enriched|length != 1 }}</span>
+  </div>
+
+  <form method="get" class="flex gap-2 mb-5">
+    <input name="search" value="{{ search }}" placeholder="Search by name or phone…"
+      class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-yellow-400">
+    <button type="submit" class="bg-yellow-700 text-white text-sm px-4 py-2 rounded-lg hover:bg-yellow-800">Search</button>
+    {% if search %}<a href="/customers" class="text-sm text-gray-400 self-center hover:text-gray-600">Clear</a>{% endif %}
+  </form>
+
+  {% if enriched %}
+  <div class="flex flex-col gap-3">
+    {% for e in enriched %}
+    <a href="/customers/{{ e.customer.id }}"
+      class="bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-yellow-400 hover:shadow-sm transition flex items-center justify-between">
+      <div>
+        <div class="text-sm font-semibold text-gray-800">{{ e.customer.name }}</div>
+        <div class="text-xs text-gray-400 mt-0.5">
+          {% if e.customer.phone %}📞 {{ e.customer.phone }}{% endif %}
+          {% if e.customer.address %} · {{ e.customer.address }}{% endif %}
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-sm font-medium text-gray-700">{{ e.order_count }} order{{ 's' if e.order_count != 1 }}</div>
+        {% if e.order_count > 1 %}
+        <div class="text-xs text-yellow-600">Repeat customer</div>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-gray-400">
+    <div class="text-4xl mb-3">👥</div>
+    <div class="font-medium">No customers yet</div>
+    <div class="text-sm mt-1">Customers are auto-registered when orders are created</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}KCG Jewellery Orders{% endblock %}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Status badges */
+  .status-pending                { background:#FEF3C7; color:#92400E; }
+  .status-given_to_vendor         { background:#DBEAFE; color:#1E40AF; }
+  .status-given_to_vendor        { background:#DBEAFE; color:#1E40AF; }
+  .status-received_at_ho         { background:#D1FAE5; color:#065F46; }
+  .status-dispatched_to_branch   { background:#EDE9FE; color:#4C1D95; }
+  .status-delivered     { background:#D1FAE5; color:#065F46; }
+  .status-delivered              { background:#D1FAE5; color:#065F46; }
+  .status-cancelled              { background:#F3F4F6; color:#6B7280; }
+
+  /* Flash */
+  .flash-success { background:#D1FAE5; color:#065F46; border-left:4px solid #10B981; }
+  .flash-error   { background:#FEE2E2; color:#991B1B; border-left:4px solid #EF4444; }
+
+  /* Sidebar */
+  .sidebar {
+    background: linear-gradient(180deg, #1a0a00 0%, #2d1200 40%, #1a0a00 100%);
+  }
+  .nav-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #a07040;
+    padding: 16px 14px 4px;
+    text-transform: uppercase;
+  }
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #c9a97a;
+    transition: all 0.15s;
+    margin: 1px 0;
+    text-decoration: none;
+  }
+  .nav-link:hover {
+    background: rgba(212,175,55,0.13);
+    color: #f5d98b;
+  }
+  .nav-link.active {
+    background: linear-gradient(90deg, rgba(212,175,55,0.22), rgba(212,175,55,0.08));
+    color: #f5d98b;
+    border-left: 3px solid #d4af37;
+    padding-left: 9px;
+  }
+  .nav-link svg {
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+  .nav-link.active svg { opacity: 1; }
+
+  /* Gold divider */
+  .gold-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.3), transparent);
+    margin: 8px 12px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen" style="font-family: 'Inter', system-ui, sans-serif;">
+
+{% if session.user_id %}
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar w-60 flex flex-col fixed top-0 left-0 h-full z-20 shadow-2xl">
+
+    <!-- Logo -->
+    <div class="px-5 py-5" style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+             style="background: linear-gradient(135deg, #d4af37, #a07828); box-shadow: 0 2px 8px rgba(212,175,55,0.4);">
+          💎
+        </div>
+        <div>
+          <div class="font-bold text-sm leading-tight" style="color:#f5d98b; letter-spacing:0.02em;">KCG Orders</div>
+          <div class="text-xs mt-0.5" style="color:#a07040;">{{ session.branch_name }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-3 overflow-y-auto flex flex-col">
+
+      <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Dashboard
+      </a>
+
+      <div class="gold-divider"></div>
+      <div class="nav-section">Orders</div>
+
+      <a href="/orders" class="nav-link {% if request.path == '/orders' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        All Orders
+      </a>
+
+      {% if session.user_role in ('branch', 'admin') %}
+      <a href="/orders/new" class="nav-link {% if request.path == '/orders/new' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Order
+      </a>
+      {% endif %}
+
+      <a href="/manage-orders" class="nav-link {% if request.path.startswith('/manage-orders') %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+        </svg>
+        Manage Orders
+      </a>
+
+      <div class="gold-divider"></div>
+      <div class="nav-section">Manage</div>
+
+      <a href="/customers" class="nav-link {% if request.path.startswith('/customers') %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Customers
+      </a>
+
+      <a href="/vendors" class="nav-link {% if request.path.startswith('/vendors') %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+        </svg>
+        Vendors
+      </a>
+
+      <div class="gold-divider"></div>
+      <div class="nav-section">Reports</div>
+
+      <a href="/reports/branch" class="nav-link {% if request.path.startswith('/reports') %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Reports
+      </a>
+
+      {% if session.user_role == 'admin' %}
+      <div class="gold-divider"></div>
+      <div class="nav-section">System</div>
+      <a href="/admin" class="nav-link {% if request.path.startswith('/admin') %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Admin
+      </a>
+      {% endif %}
+
+    </nav>
+
+    <!-- User info + logout -->
+    <div class="px-3 py-4" style="border-top: 1px solid rgba(212,175,55,0.2);">
+      <div class="flex items-center gap-2 px-2 mb-2">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+             style="background: linear-gradient(135deg, #d4af37, #a07828); color: #1a0a00;">
+          {{ session.user_name[:1].upper() }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate" style="color:#f5d98b;">{{ session.user_name }}</div>
+          <div class="text-xs capitalize" style="color:#a07040;">{{ session.user_role }}</div>
+        </div>
+      </div>
+      <a href="/logout" class="nav-link" style="color:#e07070;" onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#f87171';" onmouseout="this.style.background='';this.style.color='#e07070';">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main content -->
+  <div class="flex-1 ml-60 flex flex-col min-h-screen">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="px-6 pt-4">
+      {% for category, message in messages %}
+      <div class="flash-{{ category }} rounded-lg px-4 py-3 text-sm mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <main class="flex-1 px-6 py-6">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+</div>
+
+{% else %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="px-6 pt-4">
+    {% for category, message in messages %}\
+    <div class="flash-{{ category }} rounded-lg px-4 py-3 text-sm mb-2">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Overdue Orders — KCG Orders{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold text-gray-800">Reports</h1>
+  </div>
+  <div class="flex gap-1 border-b border-gray-200 mb-6">
+    <a href="/reports/branch"  class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600">Branch Wise</a>
+    <a href="/reports/vendor"  class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600">Vendor Wise</a>
+    <a href="/reports/monthly" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600">Monthly</a>
+    <a href="/reports/overdue" class="px-4 py-2 text-sm font-medium text-yellow-700 border-b-2 border-yellow-600">Overdue</a>
+  </div>
+
+  {% if enriched %}
+  <div class="text-sm text-gray-400 mb-3">{{ enriched|length }} overdue order{{ 's' if enriched|length != 1 }}</div>
+  <div class="flex flex-col gap-3">
+    {% for e in enriched %}
+    <a href="/orders/{{ e.order.id }}"
+      class="bg-white border border-red-200 rounded-xl p-4 hover:border-red-400 hover:shadow-sm transition block">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="text-xs text-gray-400">{{ e.order.order_number }}</div>
+          <div class="text-base font-semibold text-gray-800 mt-0.5">{{ e.order.customer_name }}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full font-medium">
+            {{ e.days_overdue }} day{{ 's' if e.days_overdue != 1 }} overdue
+          </span>
+          <span class="status-{{ e.order.order_status }} text-xs px-3 py-1 rounded-full font-medium">
+            {{ STATUS_LABELS[e.order.order_status] }}
+          </span>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+        <span>🪙 {{ e.order.product.name }} · {{ e.order.sub_product }}</span>
+        <span>⚖️ {{ e.order.weight }}g</span>
+        <span>🏪 {{ e.order.vendor.name }}</span>
+        <span>📍 {{ e.order.branch.name }}</span>
+        <span class="text-red-500">📅 Expected: {{ e.order.expected_delivery_date }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-gray-400">
+    <div class="text-4xl mb-3">✅</div>
+    <div class="font-medium">No overdue orders</div>
+    <div class="text-sm mt-1">All orders are on track</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
