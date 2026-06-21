@@ -8,30 +8,36 @@ app = Flask(__name__)
 # Load from environment, fall back to dev defaults
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
 
-# Railway provides a ready-made connection string when you add its MySQL
-# plugin (MYSQL_URL or MYSQL_PUBLIC_URL, depending on internal/external
-# networking). Prefer that if it's present. Otherwise fall back to the
-# individual DB_* vars, used for local development.
-_railway_url = os.environ.get('MYSQL_URL') or os.environ.get('MYSQL_PUBLIC_URL')
-
-if _railway_url:
-    # Railway's URL uses the mysql:// scheme; SQLAlchemy needs mysql+pymysql://
-    app.config['SQLALCHEMY_DATABASE_URI'] = _railway_url.replace('mysql://', 'mysql+pymysql://', 1)
+# Railway's native MySQL plugin variable names (proven working pattern --
+# matches the working sync setup in the SIVION/gold_dealer project).
+# We build the connection string ourselves from these individual pieces
+# rather than trusting Railway's combined MYSQL_URL reference, which can
+# fail to resolve correctly depending on how the variable reference was
+# set up.
+if os.environ.get('MYSQLHOST'):
+    DB_USER = os.environ['MYSQLUSER']
+    DB_PASS = os.environ['MYSQLPASSWORD']
+    DB_HOST = os.environ['MYSQLHOST']
+    DB_PORT = os.environ.get('MYSQLPORT', '3306')
+    DB_NAME = os.environ['MYSQLDATABASE']
 else:
+    # Local development fallback (.env file)
     DB_USER = os.environ.get('DB_USER', 'root')
     DB_PASS = os.environ.get('DB_PASS')
     if not DB_PASS:
         raise RuntimeError(
-            'DB_PASS environment variable is not set. Create a .env file '
-            '(see .env.example) or set it in your hosting platform.'
+            'Neither MYSQLHOST (Railway) nor DB_PASS (.env) is set. '
+            'Create a .env file (see .env.example) for local dev, or set '
+            'the MYSQLHOST/MYSQLUSER/MYSQLPASSWORD/MYSQLDATABASE variables '
+            'on Railway, referencing your MySQL service.'
         )
     DB_HOST = os.environ.get('DB_HOST', 'localhost')
     DB_PORT = os.environ.get('DB_PORT', '3306')
     DB_NAME = os.environ.get('DB_NAME', 'jewellery_orders')
-    app.config['SQLALCHEMY_DATABASE_URI'] = (
-        f"mysql+pymysql://{DB_USER}:{quote_plus(DB_PASS)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    )
 
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    f"mysql+pymysql://{DB_USER}:{quote_plus(DB_PASS)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Anchor to the app's actual folder (app.root_path), NOT the process's
 # current working directory -- otherwise uploads can be saved to one
