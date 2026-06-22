@@ -149,14 +149,16 @@
             Reference Images <span class="text-red-500">*</span>
             <span class="text-xs text-gray-400 font-normal ml-1">Up to 3 images</span>
           </label>
-          <div class="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-yellow-400 transition">
-            <input type="file" name="reference_images" accept="image/*" multiple id="imgInput"
-              class="text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100 w-full"
-              onchange="previewImages(this)">
-            <p class="text-xs text-gray-400 mt-1">Select up to 3 images (png, jpg, jpeg, gif, webp)</p>
-          </div>
+          <!-- Hidden inputs — populated by JS, submitted with the form -->
+          <div id="fileInputs"></div>
           <!-- Preview area -->
-          <div id="imgPreview" class="flex gap-3 mt-3 flex-wrap"></div>
+          <div id="imgPreview" class="flex gap-3 mt-2 flex-wrap"></div>
+          <!-- Add button — hidden once 3 images selected -->
+          <div id="addImgBtn" class="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-yellow-400 transition mt-2 cursor-pointer text-center" onclick="document.getElementById('hiddenPicker').click()">
+            <p class="text-sm text-gray-500">📎 Click to add image <span class="text-xs text-gray-400">(png, jpg, jpeg, gif, webp)</span></p>
+            <p class="text-xs text-gray-400 mt-1" id="imgCount">0 / 3 selected</p>
+          </div>
+          <input type="file" id="hiddenPicker" accept="image/*" class="hidden" onchange="addImage(this)">
         </div>
       </div>
     </div>
@@ -169,14 +171,47 @@
   </form>
 </div>
 <script>
-function previewImages(input) {
-  const preview = document.getElementById('imgPreview');
-  preview.innerHTML = '';
-  const files = Array.from(input.files).slice(0, 3);
-  if (input.files.length > 3) {
-    alert('Maximum 3 images allowed. Only the first 3 will be uploaded.');
+const selectedFiles = [];
+
+function addImage(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  if (selectedFiles.length >= 3) {
+    alert('Maximum 3 images allowed.');
+    input.value = '';
+    return;
   }
-  files.forEach((file, i) => {
+  selectedFiles.push(file);
+  input.value = ''; // reset so same file can be re-added if needed
+  renderPreviews();
+}
+
+function removeImage(idx) {
+  selectedFiles.splice(idx, 1);
+  renderPreviews();
+}
+
+function renderPreviews() {
+  const preview   = document.getElementById('imgPreview');
+  const countEl   = document.getElementById('imgCount');
+  const addBtn    = document.getElementById('addImgBtn');
+  const inputsDiv = document.getElementById('fileInputs');
+
+  preview.innerHTML   = '';
+  inputsDiv.innerHTML = '';
+
+  selectedFiles.forEach((file, i) => {
+    // Hidden file input so the form submits this file
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const inp = document.createElement('input');
+    inp.type   = 'file';
+    inp.name   = 'reference_images';
+    inp.style.display = 'none';
+    inp.files  = dt.files;
+    inputsDiv.appendChild(inp);
+
+    // Preview thumbnail
     const reader = new FileReader();
     reader.onload = e => {
       const div = document.createElement('div');
@@ -184,11 +219,16 @@ function previewImages(input) {
       div.innerHTML = `
         <img src="${e.target.result}" class="w-24 h-24 object-cover rounded-xl border-2 border-yellow-200 shadow-sm">
         <span class="absolute -top-1 -right-1 w-5 h-5 bg-yellow-700 text-white text-xs rounded-full flex items-center justify-center font-bold">${i+1}</span>
+        <button type="button" onclick="removeImage(${i})"
+          class="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold leading-none">✕</button>
       `;
       preview.appendChild(div);
     };
     reader.readAsDataURL(file);
   });
+
+  countEl.textContent = `${selectedFiles.length} / 3 selected`;
+  addBtn.style.display = selectedFiles.length >= 3 ? 'none' : 'block';
 }
 </script>
 {% endblock %}
