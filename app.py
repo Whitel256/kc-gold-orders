@@ -101,15 +101,17 @@ if __name__ == '__main__':
     app.run(debug=True, port=5000)
 
 @app.template_filter('img_url')
-def img_url_filter(path):
+def img_url_filter(key):
     """
-    Renders an image reference correctly whether it's a full R2/S3 URL
-    (new uploads) or an old local 'uploads/xxx.jpg' path left over from
-    before the cloud-storage migration.
+    Converts a stored image key (e.g. "orders/abc123.jpg") into a
+    temporary signed URL valid for 15 minutes. The bucket is private --
+    no direct access is possible without a signed link.
+    Falls back gracefully for old local paths from before cloud storage.
     """
-    if not path:
+    if not key:
         return ''
-    if path.startswith('http://') or path.startswith('https://'):
-        return path
-    from flask import url_for
-    return url_for('static', filename=path)
+    # Already a full URL (very old data, pre-signed-URL migration)
+    if key.startswith('http://') or key.startswith('https://'):
+        return key
+    from utils.storage import get_signed_url
+    return get_signed_url(key)
