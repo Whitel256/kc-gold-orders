@@ -142,46 +142,57 @@ def api_sync():
         _import_snapshot(data)
         return _json.dumps({'ok': True, 'exported_at': data.get('exported_at')})
     except Exception as e:
-        return _json.dumps({'ok': False, 'error': str(e)}), 500
+        import traceback
+        return _json.dumps({'ok': False, 'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 def _import_snapshot(data):
     from sqlalchemy import text
-    tables = [
-        ('branch',           'id,name'),
-        ('user',             'id,username,password_hash,role,branch_id,active'),
-        ('vendor',           'id,name,phone,active'),
-        ('product',          'id,name,category,active'),
-        ('customer',         'id,name,phone,branch_id,created_at'),
-        ('order',            'id,order_no,branch_id,vendor_id,product_id,customer_id,'
-                             'weight,purity,reference_image,reference_images,'
-                             'status,notes,created_by,created_at,updated_at'),
-        ('order_status_log', 'id,order_id,status,changed_by,reason,created_at'),
+
+    # Import order matters for foreign keys:
+    # parent tables first, child tables last
+    FK_ORDER = [
+        'branches', 'users', 'vendors', 'products',
+        'customers', 'orders', 'order_status_logs',
     ]
+
+    # Get all table names from the snapshot (excluding metadata key)
+    all_tables = [k for k in data if k != 'exported_at']
+
+    # Sort: known FK order first, then any extra tables alphabetically
+    def sort_key(t):
+        try:    return FK_ORDER.index(t)
+        except: return len(FK_ORDER)
+    all_tables.sort(key=sort_key)
+
     with db.engine.begin() as conn:
         conn.execute(text('SET FOREIGN_KEY_CHECKS=0'))
-        # Clear in reverse order to avoid FK violations
-        for tbl, _ in reversed(tables):
+
+        # Clear all tables in reverse order
+        for tbl in reversed(all_tables):
             try:
                 conn.execute(text(f'DELETE FROM `{tbl}`'))
             except Exception:
                 pass
+
         conn.execute(text('SET FOREIGN_KEY_CHECKS=1'))
 
-        for tbl, cols in tables:
+        # Re-insert all rows
+        for tbl in all_tables:
             rows = data.get(tbl, [])
             if not rows:
                 continue
-            col_list = [c.strip() for c in cols.split(',')]
-            ph  = ','.join([':' + c for c in col_list])
-            sql = text(f"INSERT IGNORE INTO `{tbl}` ({cols}) VALUES ({ph})")
+            col_list = list(rows[0].keys())
+            cols = ', '.join(f'`{c}`' for c in col_list)
+            ph   = ', '.join([':' + c for c in col_list])
+            sql  = text(f'INSERT IGNORE INTO `{tbl}` ({cols}) VALUES ({ph})')
             for row in rows:
                 try:
                     conn.execute(sql, {c: row.get(c) for c in col_list})
                 except Exception:
                     pass
 
-        # Record the sync time
+        # Record sync time
         try:
             conn.execute(text(
                 'CREATE TABLE IF NOT EXISTS last_sync '
