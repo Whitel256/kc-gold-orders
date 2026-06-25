@@ -123,7 +123,45 @@ def img_url_filter(key):
 import base64 as _b64, hashlib as _hs
 from flask import request as _req
 
-@app.route('/api/sync', methods=['POST'])
+@app.route('/api/export', methods=['GET'])
+def api_export():
+    """
+    Returns an encrypted snapshot of the entire cloud database.
+    Called by the local sync.py pull_from_cloud() function.
+    """
+    secret = os.environ.get('SYNC_SECRET', '')
+    if not secret:
+        return _json.dumps({'ok': False, 'error': 'SYNC_SECRET not set'}), 500
+
+    provided = _req.headers.get('X-Sync-Key', '')
+    expected = _hs.sha256(secret.encode()).hexdigest()
+    if provided != expected:
+        return _json.dumps({'ok': False, 'error': 'Unauthorized'}), 401
+
+    try:
+        # Export all tables from cloud MySQL
+        from sqlalchemy import text, inspect
+        snapshot = {'exported_at': str(db.session.execute(text('SELECT NOW()')).scalar())}
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        with db.engine.connect() as conn:
+            for tbl in tables:
+                if tbl == 'last_sync':
+                    continue
+                rows = conn.execute(text(f'SELECT * FROM `{tbl}`')).mappings().all()
+                snapshot[tbl] = [dict(r) for r in rows]
+
+        # Encrypt with same key as push
+        import base64 as _b64e
+        from cryptography.fernet import Fernet
+        fkey = _b64e.urlsafe_b64encode(_hs.sha256(secret.encode()).digest())
+        encrypted = Fernet(fkey).encrypt(
+            _json.dumps(snapshot, default=str).encode()
+        )
+        return encrypted, 200, {'Content-Type': 'application/octet-stream'}
+    except Exception as e:
+        import traceback
+        return _json.dumps({'ok': False, 'error': str(e), 'trace': traceback.format_exc()}), 500
 def api_sync():
     secret = os.environ.get('SYNC_SECRET', '')
     if not secret:
